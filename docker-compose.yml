@@ -35,3 +35,4 @@ services:
       - .env
     volumes:
       - ./datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+ 
