@@ -5,42 +5,76 @@ import { useNavigate, Link } from 'react-router-dom';
 import { FaEnvelope, FaLock } from 'react-icons/fa';
 import Logo1 from '../../assets/blacklogo.png'; // Adjust path as needed
 import Logo2 from '../../assets/blacktext.png'; // Adjust path as needed
+import Cookies from 'js-cookie'; // Make sure this is installed
 
 const OrganizationLogin = () => {
-  axios.defaults.withCredentials = true;
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [userId, setUserId] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
+  const [error, setError] = useState('');
   const navigate = useNavigate();
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     try {
-      const response = await axios.post(`${import.meta.env.VITE_APP_URL}org/login`, { email, password });
-      if (response.status === 200) {
+      const response = await axios.post(`${import.meta.env.VITE_APP_URL}org/login`, formData);
+      
+      if (response.status === 200 && response.data.token) {
+        // Store the token in a cookie with the key "jwt"
+        Cookies.set('jwt', response.data.token, { expires: 7 }); // Cookie expires in 7 days
+        
+        // Set the token in axios default headers for future requests
+        axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+        
+        // Fetch user ID using the token
         await fetchUserId();
+        
         navigate('/dashboard');
       } else {
-        console.error('Login failed:', response.data);
+        setError('Login failed. Please try again.');
       }
     } catch (error) {
-      console.error('Error logging in:', error); // Handle error
+      console.error('Error logging in:', error);
+      if (error.response) {
+        if (error.response.status === 400) {
+          setError('Invalid credentials. Please check your email and password.');
+        } else if (error.response.status === 404) {
+          setError('Organization not found. Please check your email or sign up.');
+        } else {
+          setError('An error occurred. Please try again later.');
+        }
+      } else {
+        setError('Network error. Please check your connection.');
+      }
     }
   };
 
   async function fetchUserId() {
     try {
+      // Use the token from cookies for authentication
+      const token = Cookies.get('jwt');
+      
       const response = await axios.get(`${import.meta.env.VITE_APP_URL}userId`, {
-        withCredentials: true // Send cookies with the request
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
+      
       console.log("User ID:", response.data.userId);
-      setUserId(response.data.userId);
-
-      // Establish socket connection after setting userId
+      
+      // Establish socket connection with user ID and token
       const newSocket = io(`${import.meta.env.VITE_APP_URL}`, {
         transports: ["websocket", "polling", "flashsocket"],
         auth: {
-          userId: response.data.userId
+          userId: response.data.userId,
+          token: token
         }
       });
 
@@ -53,6 +87,7 @@ const OrganizationLogin = () => {
       };
     } catch (error) {
       console.error("Error fetching user ID:", error);
+      setError('Failed to authenticate session.');
     }
   }
 
@@ -72,14 +107,20 @@ const OrganizationLogin = () => {
         </div>
         {/* Login Form */}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
           <div className="rounded-md shadow-sm space-y-4">
             <div className="relative">
               <FaEnvelope className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
               <input
                 className="appearance-none rounded-none relative block w-full px-3 py-2 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
                 placeholder="Email"
                 required
               />
@@ -89,8 +130,9 @@ const OrganizationLogin = () => {
               <input
                 className="appearance-none rounded-none relative block w-full px-3 py-2 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
                 placeholder="Password"
                 required
               />

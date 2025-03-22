@@ -3,6 +3,14 @@ const jwt = require('jsonwebtoken');
 const ProjectIdea = require('../Models/ProjectIdeasModel');
 const { OrganizationModel, OrganizationProfile } = require('../Models/OrganizationModel');
 
+// Helper function to extract JWT from authorization header
+const extractTokenFromHeader = (req) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return null;
+    }
+    return authHeader.split(' ')[1]; // Returns the part after 'Bearer '
+};
 
 async function signup(req, res) {
     try {
@@ -31,9 +39,8 @@ async function signup(req, res) {
         // Save the organization to the database
         await organization.save();
         
-        const organizationId = await createprofile(req.body.email,req.body.description,req.body.sector, req.body.name, req.body.phoneNumber);
+        const organizationId = await createprofile(req.body.email, req.body.description, req.body.sector, req.body.name, req.body.phoneNumber);
         res.status(201).json({ message: 'Organization created successfully', organizationId });
-        // Create a new organization profile docum
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -66,9 +73,8 @@ async function login(req, res) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
         const token = jwt.sign({ id: organization._id }, process.env.TOKEN, { expiresIn: expirydate });
-        res.cookie('jwt', token, { maxAge: expirydate });
-        // add user id to socket
-
+        
+        // Instead of setting cookie, return token in response body
         res.status(200).json({ message: 'Login successful', token });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -78,30 +84,39 @@ async function login(req, res) {
 //get user details
 const getOrganizationProfile = async (req, res) => {
     try {
-        const jwt1 = req.cookies.jwt;
-        const user = jwt.verify(jwt1, process.env.TOKEN);
+        const token = extractTokenFromHeader(req);
+        if (!token) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+        
+        const decoded = jwt.verify(token, process.env.TOKEN);
         // Find the organization profile 
-        const organizationProfile = await OrganizationProfile.findOne({ organizationId: user.id })
+        const organizationProfile = await OrganizationProfile.findOne({ organizationId: decoded.id });
         console.log(organizationProfile);
         if (!organizationProfile) {
             return res.status(404).json({ message: 'Organization profile not found' });
         }
         res.status(200).json({ organizationProfile });
-
     }
     catch (error) {
+        console.log(error);
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({ message: 'Invalid token' });
+        }
         res.status(500).json({ error: error.message });
     }
 };
 
-
 // Update the organization profile using the same organization id only pro
-
 async function updateOrganizationProfile(req, res) {
     try{
-        const jwt1 = req.cookies.jwt;
-        const user = jwt.verify(jwt1, process.env.TOKEN);
-        const organizationProfile = await OrganizationProfile.findOne({ organizationId: user.id });
+        const token = extractTokenFromHeader(req);
+        if (!token) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+        
+        const decoded = jwt.verify(token, process.env.TOKEN);
+        const organizationProfile = await OrganizationProfile.findOne({ organizationId: decoded.id });
         // Update the organization profile projects,contact,profile description,
         organizationProfile.projects = req.body.projects;
         organizationProfile.contact = req.body.contact;
@@ -110,32 +125,35 @@ async function updateOrganizationProfile(req, res) {
         res.status(200).json({ message: 'Organization profile updated successfully' });
     }
     catch (error) {
+        console.log(error);
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({ message: 'Invalid token' });
+        }
         res.status(500).json({ error: error.message });
     }
 }
 
-
 const checkAuthenticated = async (req, res, next) => {
-    const token = req?.cookies?.jwt;
+    const token = extractTokenFromHeader(req);
     if (!token) {
-        return res.send('not authenticated');
+        return res.status(401).json({ message: 'Not authenticated' });
     }
     try {
-        const user1 = jwt.verify(token, process.env.TOKEN);
-        req.user = user1;
+        const decoded = jwt.verify(token, process.env.TOKEN);
+        req.user = decoded;
         next();
     } catch (error) {
-        res.send('not authenticated');
+        res.status(401).json({ message: 'Not authenticated' });
     }
 };
 
 const checkNotAuthenticated = async (req, res, next) => {
-    const token = req?.cookies?.jwt;
+    const token = extractTokenFromHeader(req);
     if (token) {
         try {
-            const user1 = jwt.verify(token, process.env.TOKEN);
-            req.user = user1;
-            return res.send('already authenticated');
+            const decoded = jwt.verify(token, process.env.TOKEN);
+            req.user = decoded;
+            return res.status(403).json({ message: 'Already authenticated' });
         } catch (error) {
             next();
         }
@@ -146,7 +164,11 @@ const checkNotAuthenticated = async (req, res, next) => {
 
 const postProjectIdea = async (req, res) => {
     try {
-        const token = req?.cookies?.jwt;
+        const token = extractTokenFromHeader(req);
+        if (!token) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+        
         const decoded = jwt.verify(token, process.env.TOKEN);
         const { title, description, skillsRequired } = req?.body;
         const projectIdea = new ProjectIdea({
@@ -158,63 +180,118 @@ const postProjectIdea = async (req, res) => {
         await projectIdea.save();
         res.status(201).send('Project idea posted successfully');
     } catch (error) {
+        console.log(error);
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({ message: 'Invalid token' });
+        }
         res.status(500).json({ error: error.message });
     }
 };
-
 
 const getProjectIdeas = async (req, res) => {
     try {
-        const token = req?.cookies?.jwt;
+        const token = extractTokenFromHeader(req);
+        if (!token) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+        
         const decoded = jwt.verify(token, process.env.TOKEN);
-        console.log(decoded)
+        console.log(decoded);
         const projectIdeas = await ProjectIdea.find({ organizationId: decoded.id });
         res.status(200).send(projectIdeas);
     } catch (error) {
+        console.log(error);
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({ message: 'Invalid token' });
+        }
         res.status(500).json({ error: error.message });
     }
 };
 
-
 const editProjectIdea = async (req, res) => {
     try {
+        const token = extractTokenFromHeader(req);
+        if (!token) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+        
+        const decoded = jwt.verify(token, process.env.TOKEN);
         const projectId = req?.params?.id;
         const projectIdea = await ProjectIdea.findOne({ _id: projectId });
+        
+        // Verify ownership
+        if (projectIdea.organizationId.toString() !== decoded.id) {
+            return res.status(403).json({ message: 'Unauthorized access' });
+        }
+        
         projectIdea.title = req?.body?.title;
         projectIdea.description = req?.body?.description;
         projectIdea.skillsRequired = req?.body?.skillsRequired;
         await projectIdea.save();
         res.status(200).send('Project idea updated successfully');
     } catch (error) {
+        console.log(error);
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({ message: 'Invalid token' });
+        }
         res.status(500).json({ error: error.message });
     }
 };
 
 const deleteProjectIdea = async (req, res) => {
     try {
+        const token = extractTokenFromHeader(req);
+        if (!token) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+        
+        const decoded = jwt.verify(token, process.env.TOKEN);
         const projectId = req?.params?.id;
+        
+        // Verify ownership before deletion
+        const projectIdea = await ProjectIdea.findOne({ _id: projectId });
+        if (projectIdea && projectIdea.organizationId.toString() !== decoded.id) {
+            return res.status(403).json({ message: 'Unauthorized access' });
+        }
+        
         await ProjectIdea.deleteOne({ _id: projectId });
         res.status(200).send('Project idea deleted successfully');
     } catch (error) {
+        console.log(error);
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({ message: 'Invalid token' });
+        }
         res.status(500).json({ error: error.message });
     }
-}
+};
+
 async function logout(req, res) {
-    res.cookie('jwt', '', { maxAge: 1 });
-    res.send('logged out');
+    // No need to clear cookies, logout will be handled on client side
+    res.status(200).send('Logged out');
 }
 
-
-const getOrganizaitonEmail = async(req,res) => {
-    const member = await OrganizationModel.findOne({_id: req?.params?.id})
+const getOrganizaitonEmail = async(req, res) => {
+    const member = await OrganizationModel.findOne({_id: req?.params?.id});
     res.status(200).send(member.email);
-    
-}
+};
 
-const getOrganizationInfo = async(req,res) => {
-    const member = await OrganizationModel.findOne({_id: req?.params?.id})
+const getOrganizationInfo = async(req, res) => {
+    const member = await OrganizationModel.findOne({_id: req?.params?.id});
     res.status(200).send(member);
-}
+};
 
-
-module.exports = { signup, login, getOrganizationProfile, updateOrganizationProfile, checkAuthenticated, checkNotAuthenticated, logout, postProjectIdea, getProjectIdeas, editProjectIdea, deleteProjectIdea, getOrganizaitonEmail, getOrganizationInfo};
+module.exports = { 
+    signup, 
+    login, 
+    getOrganizationProfile, 
+    updateOrganizationProfile, 
+    checkAuthenticated, 
+    checkNotAuthenticated, 
+    logout, 
+    postProjectIdea, 
+    getProjectIdeas, 
+    editProjectIdea, 
+    deleteProjectIdea, 
+    getOrganizaitonEmail, 
+    getOrganizationInfo
+};

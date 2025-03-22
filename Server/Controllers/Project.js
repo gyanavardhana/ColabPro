@@ -4,9 +4,21 @@ const Organization = require('../Models/OrganizationModel');
 const Member = require('../Models/MemberModel');
 const ProjectIdea = require('../Models/ProjectIdeasModel');
 
+// Helper function to extract token from Authorization header
+const extractToken = (req) => {
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    return req.headers.authorization.split(' ')[1];
+  }
+  return null;
+};
+
 const createProject = async (req, res) => {
     try {
-        const token = req?.cookies?.jwt;
+        const token = extractToken(req);
+        if (!token) {
+            return res.status(401).json({ error: "Authentication required" });
+        }
+        
         const decoded = jwt.verify(token, process.env.TOKEN);
         const project = new Project({
             title: req?.body?.title,
@@ -28,7 +40,11 @@ const createProject = async (req, res) => {
 
 const getAllProjects = async (req, res) => {
     try {
-        const token = req?.cookies?.jwt;
+        const token = extractToken(req);
+        if (!token) {
+            return res.status(401).json({ error: "Authentication required" });
+        }
+        
         const decoded = jwt.verify(token, process.env.TOKEN);
         const projects = await Project.find({ organizationId: decoded?.id });
         res.status(200).json({ projects });
@@ -39,7 +55,11 @@ const getAllProjects = async (req, res) => {
 
 const editProject = async (req, res) => {
     try {
-        const token = req?.cookies?.jwt;
+        const token = extractToken(req);
+        if (!token) {
+            return res.status(401).json({ error: "Authentication required" });
+        }
+        
         const decoded = jwt.verify(token, process.env.TOKEN);
         const project = await Project.findById(req?.params?.id);
         if (project?.organizationId?.toString() !== decoded?.id?.toString()) {
@@ -61,7 +81,20 @@ const editProject = async (req, res) => {
 
 const deleteProject = async (req, res) => {
     try {
-        const project = await Project.findByIdAndDelete(req?.params?.id);
+        // You may want to add auth check here as well
+        const token = extractToken(req);
+        if (!token) {
+            return res.status(401).json({ error: "Authentication required" });
+        }
+        
+        const decoded = jwt.verify(token, process.env.TOKEN);
+        // Optional: verify ownership before deletion
+        const project = await Project.findById(req?.params?.id);
+        if (project?.organizationId?.toString() !== decoded?.id?.toString()) {
+            return res.status(401).json({ message: 'Unauthorized' });
+        }
+        
+        await Project.findByIdAndDelete(req?.params?.id);
         res.status(200).json({ message: 'Project deleted successfully' });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -70,6 +103,7 @@ const deleteProject = async (req, res) => {
 
 const getEveryProjects = async (req, res) => {
     try {
+        // Depending on your requirements, you might want to add auth check here too
         const projects = await Project.find();
         res.status(200).send(projects);
     } catch (error) {
@@ -80,10 +114,11 @@ const getEveryProjects = async (req, res) => {
 
 const getUserType = async (req, res) => {
     try {
-        const token = req?.cookies?.jwt;
+        const token = extractToken(req);
         if (!token) {
-            throw new Error('JWT token not found');
+            return res.status(401).json({ error: "Authentication required" });
         }
+        
         const decoded = jwt.verify(token, process.env.TOKEN);
         const type = await Member.findOne({ _id: decoded?.id });
         if (type) {
@@ -109,14 +144,15 @@ const getEveryProjectIdea = async (req, res) => {
 
 const protectedRoute = async (req, res) => {
     try {
-        const token = req?.cookies?.jwt;
+        const token = extractToken(req);
         if (!token) {
-            res.status(401).send('Unauthorized');
+            return res.status(401).json({ error: "Authentication required" });
         }
+        
         const decoded = jwt.verify(token, process.env.TOKEN);
         res.status(200).send('Login successful');
     } catch (error) {
-        console.error('Error fetching user type:', error.message);
+        console.error('Error in protected route:', error.message);
         res.status(500).send('Internal Server Error');
     }
 };

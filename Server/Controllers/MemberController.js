@@ -4,7 +4,6 @@ const ProjectIdea = require('../Models/ProjectIdeasModel');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-
 const memberSignup = async (req, res, next) => {
     try {
         if(req?.body?.password !== req?.body?.confirmPassword){
@@ -50,6 +49,7 @@ const getMemberEmail = async(req,res) => {
     res.status(200).send(member.email);
     
 }
+
 const createToken = async (id) => {
     const token = jwt.sign({ id }, process.env.TOKEN, { expiresIn: 1000 });
     return token;
@@ -63,7 +63,6 @@ const comparePassword = async (password, user) => {
 const memberLogin = async (req, res, next) => {
     const email = req?.body?.email;
     const password = req?.body?.password;
-    expirydate = 1000 * 60 * 60 * 24 * 3
     try {
         const user = await Member.findOne({ email: email });
         if (user) {
@@ -71,8 +70,11 @@ const memberLogin = async (req, res, next) => {
             if (auth) {
                 const token = await createToken(user?._id);
                 console.log(token);
-                res.cookie('jwt',  token, { maxAge: expirydate });
-                res.status(200).send('login successful');
+                // Return the token in the response instead of setting a cookie
+                res.status(200).json({ 
+                    message: 'login successful',
+                    token: token 
+                });
             } else {
                 res.status(400).send('invalid credentials');
             }
@@ -86,27 +88,46 @@ const memberLogin = async (req, res, next) => {
 };
 
 const memberLogout = async (req, res) => {
-    res.cookie('jwt', '', { maxAge: 1 });
+    // No need to clear cookies, logout will be handled on the client side
     res.status(200).send('logged out');
+};
+
+// Helper function to extract JWT from authorization header
+const extractTokenFromHeader = (req) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return null;
+    }
+    return authHeader.split(' ')[1]; // Returns the part after 'Bearer '
 };
 
 const memberProfile = async(req, res, next) => {
     try {
-        const token = req?.cookies?.jwt;
+        const token = extractTokenFromHeader(req);
+        if (!token) {
+            return res.status(401).send('authentication required');
+        }
+        
         const decoded = jwt.verify(token, process.env.TOKEN);
         const user = await MemberProfile.findOne({ memberId: decoded?.id });
         res.status(200).send(user);
     }
     catch(err){
         console.log(err);
+        if (err.name === 'JsonWebTokenError') {
+            return res.status(401).send('invalid token');
+        }
         res.status(500).send('internal server error');
     }
 }
 
 const editMemberProfile = async (req, res, next) => {
     try {
-        const token = req?.cookies?.jwt;
-        console.log(token);
+        const token = extractTokenFromHeader(req);
+        if (!token) {
+            return res.status(401).send('authentication required');
+        }
+        
         const decoded = jwt.verify(token, process.env.TOKEN);
         const user = await MemberProfile.findOne({ memberId: decoded?.id });
         user.contact = req?.body?.contact;
@@ -118,14 +139,20 @@ const editMemberProfile = async (req, res, next) => {
         res.status(200).send('profile updated');
     } catch (err) {
         console.log(err);
+        if (err.name === 'JsonWebTokenError') {
+            return res.status(401).send('invalid token');
+        }
         res.status(500).send('internal server error');
     }
 };
 
-
 const postProjectIdea = async(req, res, next) => {
     try {
-        const token = req?.cookies?.jwt;
+        const token = extractTokenFromHeader(req);
+        if (!token) {
+            return res.status(401).send('authentication required');
+        }
+        
         const decoded = jwt.verify(token, process.env.TOKEN);
         const projectIdea = new ProjectIdea({
             title: req?.body?.title,
@@ -139,27 +166,51 @@ const postProjectIdea = async(req, res, next) => {
     }
     catch(err){
         console.log(err);
+        if (err.name === 'JsonWebTokenError') {
+            return res.status(401).send('invalid token');
+        }
         res.status(500).send('internal server error');
     }
 }
 
 const getProjectIdeas = async(req, res, next) => {
     try{
-        const token = req?.cookies?.jwt;
+        const token = extractTokenFromHeader(req);
+        if (!token) {
+            return res.status(401).send('authentication required');
+        }
+        
         const decoded = jwt.verify(token, process.env.TOKEN);
         const projectIdeas = await ProjectIdea.find({memberId: decoded?.id});
         console.log(projectIdeas)
         res.status(200).send(projectIdeas);
     }catch(err){
         console.log(err);
+        if (err.name === 'JsonWebTokenError') {
+            return res.status(401).send('invalid token');
+        }
         res.status(500).send('internal server error');
     }
 }
 
 const editProjectIdea = async(req, res, next) => {
     try{
+        const token = extractTokenFromHeader(req);
+        if (!token) {
+            return res.status(401).send('authentication required');
+        }
+        
+        // Verify authorization before editing
+        const decoded = jwt.verify(token, process.env.TOKEN);
+        
         const projectId = req?.params?.id;
         const projectIdea = await ProjectIdea.findOne({_id: projectId})  
+        
+        // Ensure the user owns this project idea
+        if (projectIdea.memberId.toString() !== decoded.id) {
+            return res.status(403).send('unauthorized access');
+        }
+        
         projectIdea.title = req?.body?.title;
         projectIdea.description = req?.body?.description;
         projectIdea.skillsRequired = req?.body?.skillsRequired;
@@ -167,17 +218,38 @@ const editProjectIdea = async(req, res, next) => {
         res.status(200).send('project idea updated');
     }catch(err){
         console.log(err);
+        if (err.name === 'JsonWebTokenError') {
+            return res.status(401).send('invalid token');
+        }
         res.status(500).send('internal server error');
     }
 }
 
 const deleteProjectIdea = async(req, res, next) => {
     try{
+        const token = extractTokenFromHeader(req);
+        if (!token) {
+            return res.status(401).send('authentication required');
+        }
+        
+        // Verify authorization before deleting
+        const decoded = jwt.verify(token, process.env.TOKEN);
+        
         const projectId = req?.params?.id;
+        const projectIdea = await ProjectIdea.findOne({_id: projectId});
+        
+        // Ensure the user owns this project idea
+        if (projectIdea && projectIdea.memberId.toString() !== decoded.id) {
+            return res.status(403).send('unauthorized access');
+        }
+        
         await ProjectIdea.deleteOne({_id: projectId});
         res.status(200).send('project idea deleted');
     }catch(err){
         console.log(err);
+        if (err.name === 'JsonWebTokenError') {
+            return res.status(401).send('invalid token');
+        }
         res.status(500).send('internal server error');
     }
 }
@@ -192,28 +264,29 @@ const getMemberInfo = async(req, res, next) => {
         res.status(500).send('internal server error');
     }
 }
-/*
+
+// Authentication middleware
 const checkAuthenticated = async (req, res, next) => {
-    const token = req?.cookies?.jwt;
+    const token = extractTokenFromHeader(req);
     if (!token) {
-        return res.send('not authenticated');
+        return res.status(401).send('not authenticated');
     }
     try {
-        const user1 = jwt.verify(token, process.env.TOKEN);
-        req.user = user1;
+        const decoded = jwt.verify(token, process.env.TOKEN);
+        req.user = decoded;
         next();
     } catch (error) {
-        res.send('not authenticated');
+        res.status(401).send('not authenticated');
     }
 };
 
 const checkNotAuthenticated = async (req, res, next) => {
-    const token = req?.cookies?.jwt;
+    const token = extractTokenFromHeader(req);
     if (token) {
         try {
-            const user1 = jwt.verify(token, process.env.TOKEN);
-            req.user = user1;
-            return res.send('already authenticated');
+            const decoded = jwt.verify(token, process.env.TOKEN);
+            req.user = decoded;
+            return res.status(403).send('already authenticated');
         } catch (error) {
             next();
         }
@@ -222,7 +295,6 @@ const checkNotAuthenticated = async (req, res, next) => {
     }
 };
 
-*/
 module.exports = {
     memberSignup,
     memberLogin,
@@ -234,9 +306,7 @@ module.exports = {
     editProjectIdea,
     deleteProjectIdea,
     getMemberEmail,
-    getMemberInfo
-    /*
+    getMemberInfo,
     checkAuthenticated,
     checkNotAuthenticated
-    */
 }
