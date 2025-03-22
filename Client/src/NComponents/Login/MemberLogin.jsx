@@ -4,13 +4,14 @@ import { useNavigate, Link } from 'react-router-dom';
 import { FaEnvelope, FaLock } from 'react-icons/fa';
 import Logo1 from '../../assets/blacklogo.png'; // Adjust path as needed
 import Logo2 from '../../assets/blacktext.png'; // Adjust path as needed
+import Cookies from 'js-cookie'; // Make sure to install this package: npm install js-cookie
 
 const MemberLogin = () => {
-  axios.defaults.withCredentials = true;
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -20,15 +21,34 @@ const MemberLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     try {
       const response = await axios.post(`${import.meta.env.VITE_APP_URL}mem/login`, formData);
-      if (response.status === 200) {
+      
+      if (response.status === 200 && response.data.token) {
+        // Store the token in a cookie with the key "jwt"
+        Cookies.set('jwt', response.data.token, { expires: 7 }); // Cookie expires in 7 days
+        
+        // Set the token in axios default headers for future requests
+        axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+        
         navigate('/dashboard');
       } else {
-        console.error('Login failed:', response.data);
+        setError('Login failed. Please try again.');
       }
     } catch (error) {
-      console.error('Error logging in:', error); // Handle error
+      console.error('Error logging in:', error);
+      if (error.response) {
+        if (error.response.status === 400) {
+          setError('Invalid credentials. Please check your email and password.');
+        } else if (error.response.status === 404) {
+          setError('User not found. Please check your email or sign up.');
+        } else {
+          setError('An error occurred. Please try again later.');
+        }
+      } else {
+        setError('Network error. Please check your connection.');
+      }
     }
   };
 
@@ -48,6 +68,11 @@ const MemberLogin = () => {
         </div>
         {/* Login Form */}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
           <div className="rounded-md shadow-sm space-y-4">
             <div className="relative">
               <FaEnvelope className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
