@@ -4,6 +4,10 @@ import Accordion from "./Accordion"; // Adjust the path as necessary
 import organization from "../../assets/organization.png";
 import projectOwners from "../../assets/owner.png";
 import teamMembers from "../../assets/team4.png";
+import proposeIdeasImg from "../../assets/propose_ideas.png";
+import createProjectsImg from "../../assets/create_projects.png";
+import manageTasksImg from "../../assets/manage_tasks.png";
+import collaborateImg from "../../assets/collaborate_com.png";
 
 const BelowHero = () => {
   const navigate = useNavigate();
@@ -13,27 +17,28 @@ const BelowHero = () => {
   };
 
   const howItWorksItems = [
-    {
-      title: "Propose Ideas",
-      description: "Submit and brainstorm project ideas.",
-      image: "src/assets/organization.png", // Replace with actual image path
-    },
-    {
-      title: "Create Projects",
-      description: "Transform ideas into actionable projects.",
-      image: "src/assets/organization.png", // Replace with actual image path
-    },
-    {
-      title: "Manage Tasks",
-      description: "Assign responsibilities and set milestones.",
-      image: "src/assets/organization.png", // Replace with actual image path
-    },
-    {
-      title: "Collaborate & Communicate",
-      description: "Use built-in chat and notifications.",
-      image: "src/assets/organization.png", // Replace with actual image path
-    },
-  ];
+  {
+    title: "Propose Ideas",
+    description: "Submit and brainstorm project ideas.",
+    image: proposeIdeasImg,
+  },
+  {
+    title: "Create Projects",
+    description: "Transform ideas into actionable projects.",
+    image: createProjectsImg,
+  },
+  {
+    title: "Manage Tasks",
+    description: "Assign responsibilities and set milestones.",
+    image: manageTasksImg,
+  },
+  {
+    title: "Collaborate & Communicate",
+    description: "Use built-in chat and notifications.",
+    image: collaborateImg,
+  },
+];
+
 
   return (
     <>

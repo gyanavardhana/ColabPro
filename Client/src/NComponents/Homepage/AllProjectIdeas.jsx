@@ -91,13 +91,13 @@ const IdeaCardContainer = ({ cards }) => {
         <>
           <button 
             onClick={() => scroll('left')} 
-            className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md text-gray-800 hover:text-amber-500 z-10"
+            className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md text-gray-800 hover:text-amber-500"
           >
             <FaChevronLeft size={24} />
           </button>
           <button 
             onClick={() => scroll('right')} 
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md text-gray-800 hover:text-amber-500 z-10"
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md text-gray-800 hover:text-amber-500"
           >
             <FaChevronRight size={24} />
           </button>

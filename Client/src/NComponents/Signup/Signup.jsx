@@ -6,6 +6,8 @@ import NavigationBar from '../Homepage/Navigationbar';
 import { motion } from 'framer-motion';
 import { FaUserTie, FaUser } from 'react-icons/fa';
 
+import orgImage from '../../assets/mem1.png'; // Replace with actual path
+import memImage from '../../assets/org.png'; // Replace with actual path
 const Signup = () => {
   const [isOrganization, setIsOrganization] = useState(true);
 
@@ -38,7 +40,7 @@ const Signup = () => {
               </div>
               <motion.img
                 key={isOrganization ? 'orgImage' : 'memberImage'}
-                src={isOrganization ? 'src/assets/mem1.png' : 'src/assets/org.png'}
+                src={isOrganization ? memImage : orgImage}
                 alt={isOrganization ? 'Organization' : 'Member'}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}

@@ -85,8 +85,8 @@ const CardContainer = ({ cards }) => {
   };
 
   return (
-    <div className="relative px-4 py-4 bg-gray-200 rounded-lg shadow-inner">
-      <div 
+    <div className="card-container relative px-4 py-4 bg-gray-200 rounded-lg shadow-inner">
+      <div
         ref={scrollContainerRef}
         className="flex overflow-x-auto scrollbar-hide scroll-smooth gap-6 pb-4"
         style={{ scrollSnapType: 'x mandatory' }}
@@ -105,15 +105,15 @@ const CardContainer = ({ cards }) => {
       </div>
       {cards.length > 1 && (
         <>
-          <button 
-            onClick={() => scroll('left')} 
-            className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md text-gray-800 hover:text-amber-500 z-10"
+          <button
+            onClick={() => scroll('left')}
+            className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md text-gray-800 hover:text-amber-500"
           >
             <FaChevronLeft size={24} />
           </button>
-          <button 
-            onClick={() => scroll('right')} 
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md text-gray-800 hover:text-amber-500 z-10"
+          <button
+            onClick={() => scroll('right')}
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md text-gray-800 hover:text-amber-500"
           >
             <FaChevronRight size={24} />
           </button>
@@ -122,6 +122,7 @@ const CardContainer = ({ cards }) => {
     </div>
   );
 };
+
 const AllProjects = () => {
   const [projects, setProjects] = useState([]);
   

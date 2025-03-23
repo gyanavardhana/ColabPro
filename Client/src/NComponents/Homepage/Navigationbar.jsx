@@ -1,51 +1,47 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios"; // Assuming you have axios installed
+import axios from "axios";
 import Logout from "../Login/Logout";
-import { AccountCircle, Dashboard } from "@mui/icons-material";
+import { AccountCircle, Dashboard, Menu as MenuIcon, Close } from "@mui/icons-material";
 import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
-import { ListItemButton } from "@mui/material"; // Import ListItemButton
+import { ListItemButton } from "@mui/material";
 
 // Import your logos
 import Logo1 from "../../assets/blacklogo.png";
-import Logo2 from "../../assets/blacktext.png"; // Adjust the path to your logo
+import Logo2 from "../../assets/blacktext.png";
 
 const NavigationBar = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userType, setUserType] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [anchorEl, setAnchorEl] = useState(null);
-  const dropdownRef = useRef(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    // Function to fetch user type based on the decoded JWT token
     const fetchUserType = async () => {
-      const token = getCookie("jwt"); // Get the JWT token from cookies
+      const token = getCookie("jwt");
 
       if (token) {
         try {
           const response = await axios.get(
             `${import.meta.env.VITE_APP_URL}usertype`
           );
-          const userType = response.data; // Accessing the data property of the response
-
-          setUserType(userType); // Setting user type
-          setIsLoggedIn(true); // Marking user as logged in
+          const userType = response.data;
+          setUserType(userType);
+          setIsLoggedIn(true);
         } catch (error) {
-          // Handle error
           console.error("Error fetching user type:", error);
         }
       }
 
-      setIsLoading(false); // Marking loading as complete
+      setIsLoading(false);
     };
 
     fetchUserType();
   }, []);
 
-  // Function to get cookie value by name
   const getCookie = (name) => {
     const cookieValue = document.cookie.match(
       "(^|;)\\s*" + name + "\\s*=\\s*([^;]+)"
@@ -61,35 +57,51 @@ const NavigationBar = () => {
     setAnchorEl(null);
   };
 
-  const NavLink = ({ to, children }) => (
-    <Link
-      to={to}
-      className="text-gray-900 hover:text-gray-700 font-medium transition duration-300 px-3 py-2 rounded-md hover:bg-amber-500 text-lg" // Increase text size and adjust hover
-    >
-      {children}
-    </Link>
-  );
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false);
+  };
 
   const handleLogout = () => {
-    // Logic for logout
     setIsLoggedIn(false);
     handleClose();
     // Clear the token from cookies
   };
 
+  const NavLink = ({ to, children, onClick }) => (
+    <Link
+      to={to}
+      onClick={onClick}
+      className="text-gray-900 hover:text-gray-700 font-medium transition duration-300 px-3 py-2 rounded-md hover:bg-amber-500 text-lg"
+    >
+      {children}
+    </Link>
+  );
+
   return (
-    <nav className="bg-amber-300 text-gray-900 shadow-md border-b-2 border-gray-700">
+    <nav className="bg-amber-300 text-gray-900 shadow-md border-b-2 border-gray-700 relative z-50">
       <div className="container mx-auto flex items-center justify-between h-24">
-        {/* Logo Section */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 ml-4 md:ml-0">
           <Link to="/" className="flex items-center">
             <img src={Logo1} alt="Logo 1" className="h-16" />
             <img src={Logo2} alt="Logo 2" className="h-16 ml-2" />
           </Link>
         </div>
 
-        {/* Navigation Links and Account Icon */}
-        <div className="flex items-center space-x-6">
+        <div className="md:hidden mr-4">
+          <button
+            onClick={toggleMobileMenu}
+            className="text-gray-900 hover:bg-amber-200 p-2 rounded transition duration-300"
+            aria-label="Toggle mobile menu"
+          >
+            <MenuIcon />
+          </button>
+        </div>
+
+        <div className="hidden md:flex items-center space-x-6">
           <NavLink to="/projects">Projects</NavLink>
           <NavLink to="/projectideas">Project Ideas</NavLink>
           <NavLink to="/community">Community</NavLink>
@@ -97,7 +109,6 @@ const NavigationBar = () => {
           <NavLink to="/resources">Resources</NavLink>
           <NavLink to="/chat">Chat</NavLink>
 
-          {/* Account/Dropdown Section */}
           <IconButton
             onClick={handleDropdownClick}
             aria-haspopup="true"
@@ -148,6 +159,49 @@ const NavigationBar = () => {
           </Menu>
         </div>
       </div>
+
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-50 bg-amber-300 pt-16">
+          <div className="flex flex-col items-center justify-center h-full">
+            <button
+              onClick={closeMobileMenu}
+              className="absolute top-4 right-4 text-gray-900 hover:bg-amber-200 p-2 rounded transition duration-300"
+              aria-label="Close mobile menu"
+            >
+              <Close fontSize="large" />
+            </button>
+
+            <div className="flex flex-col items-center space-y-6">
+              <NavLink to="/projects" onClick={closeMobileMenu}>Projects</NavLink>
+              <NavLink to="/projectideas" onClick={closeMobileMenu}>Project Ideas</NavLink>
+              <NavLink to="/community" onClick={closeMobileMenu}>Community</NavLink>
+              <NavLink to="/contactus" onClick={closeMobileMenu}>Contact Us</NavLink>
+              <NavLink to="/resources" onClick={closeMobileMenu}>Resources</NavLink>
+              <NavLink to="/chat" onClick={closeMobileMenu}>Chat</NavLink>
+
+              {isLoggedIn ? (
+                <>
+                  <NavLink to="/dashboard" onClick={closeMobileMenu}>Dashboard</NavLink>
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      closeMobileMenu();
+                    }}
+                    className="text-gray-900 hover:text-gray-700 font-medium transition duration-300 px-3 py-2 rounded-md hover:bg-amber-500 text-lg"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <NavLink to="/login" onClick={closeMobileMenu}>Login</NavLink>
+                  <NavLink to="/signup" onClick={closeMobileMenu}>Signup</NavLink>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   );
 };
